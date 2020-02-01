@@ -1,4 +1,4 @@
-package Lesson1;
+package Lesson1.common;
 
 
 import java.awt.*;
@@ -7,7 +7,7 @@ import java.awt.*;
  * Основа двумерного объекта
  * Центр которого это х,у.
  */
-public class Sprite {
+public class Sprite implements GameObject {
 
     //координаты
     protected float x; // по х
@@ -47,8 +47,10 @@ public class Sprite {
         return 2f*halfWidth;
     }
 
-    void update(GameCanvas canvas, float deltaTime){} //обновление своих координат
-    void render(GameCanvas canvas, Graphics g){}   // отрисовывается
+    @Override
+    public void update(GameCanvas canvas, float deltaTime){} //обновление своих координат
+    @Override
+    public void render(GameCanvas canvas, Graphics g){}   // отрисовывается
 
 
 }

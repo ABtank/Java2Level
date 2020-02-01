@@ -1,4 +1,6 @@
-package Lesson1;
+package Lesson1.common;
+
+import Lesson1.balls.MainCircles;
 
 import javax.swing.*;
 import java.awt.*;
@@ -9,7 +11,7 @@ import java.awt.*;
 
 public class GameCanvas extends JPanel {
 
-    MainCircles gameController; //Чтоб вызывать из канвы методы MainCircles
+    CanvasListener gameController; //Чтоб вызывать из канвы методы MainCircles
     long lastFrameTime; // время последнего обновления (предыдущее время)
     static float deltaTime;
 
@@ -18,7 +20,7 @@ public class GameCanvas extends JPanel {
      * @param gameController для получения ссылки на MainCircles и сохрание его,
      *                      чтоб с его помощью вызывать метод onDrowFrame.
      */
-    GameCanvas(MainCircles gameController) {
+    public GameCanvas(CanvasListener gameController) {
         //setBackground(Color.GRAY);  //установка цвета
         this.gameController = gameController;
         lastFrameTime = System.nanoTime();
@@ -41,7 +43,6 @@ public class GameCanvas extends JPanel {
         } catch (InterruptedException e) {
             e.printStackTrace(); //отработка исключения
         }
-        setBackground(BGCanvas.color);
         repaint();  //перерисовка
     }
 

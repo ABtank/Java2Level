@@ -1,4 +1,7 @@
-package Lesson1;
+package Lesson1.balls;
+
+import Lesson1.common.GameCanvas;
+import Lesson1.common.Sprite;
 
 import java.awt.*;
 
@@ -20,8 +23,14 @@ public class Ball extends Sprite {
         halfWidth = halfHeight;
     }
 
+    Ball(int x, int y) {
+        this();
+        this.x = x;
+        this.y = y;
+    }
+
     @Override
-    void update(GameCanvas canvas, float deltaTime) {
+    public void update(GameCanvas canvas, float deltaTime) {
         x += vX * deltaTime;
         y += vY * deltaTime;
         if (getLeft() < canvas.getLeft()) {
@@ -43,8 +52,8 @@ public class Ball extends Sprite {
     }
 
     @Override
-    void render(GameCanvas canvas, Graphics g) {
-       //установка цвета
+   public void render(GameCanvas canvas, Graphics g) {
+        //установка цвета
 
         g.setColor(color);
         //отрисовка фигуры

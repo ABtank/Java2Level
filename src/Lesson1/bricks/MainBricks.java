@@ -1,7 +1,13 @@
-package Lesson1;
+package Lesson1.bricks;
+
+import Lesson1.common.CanvasListener;
+import Lesson1.common.GameCanvas;
+import Lesson1.common.GameObject;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 
 /**
  * ИГРОВОЙ ЦИКЛ
@@ -9,15 +15,15 @@ import java.awt.*;
  * 2)Действие
  * 3)Отрисовка
  */
-public class MainCircles extends JFrame {
+public class MainBricks extends JFrame implements CanvasListener {
     //задаем размеры окра
     private static final int POS_X = 400;
     private static final int POS_Y = 200;
     private static final int WINDOW_WIDTH = 800;
     private static final int WINDOW_HEIGHT = 600;
 
-    Sprite[] sprites = new Sprite[10];
-    Sprite backGround = new Sprite();
+    private GameObject[] gameObjects = new GameObject[1];
+    private int gameObjectCount;
 
 
     public static void main(String[] args) {
@@ -27,7 +33,7 @@ public class MainCircles extends JFrame {
         SwingUtilities.invokeLater(new Runnable() {
             @Override
             public void run() {
-                new MainCircles();
+                new MainBricks();
             }
         });
     }
@@ -35,32 +41,52 @@ public class MainCircles extends JFrame {
     /**
      * Конструктор окна
      */
-    private MainCircles() {
+    private MainBricks() {
         setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE); // делаем закрытие окна по нажатию кнопки X
         setBounds(POS_X, POS_Y, WINDOW_WIDTH, WINDOW_HEIGHT); // устанавливаем границы нашего окна
         initApplication();
         GameCanvas canvas = new GameCanvas(this); // создаем канву в окне
+        canvas.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseReleased(MouseEvent e) {
+                System.out.println(e.getButton());
+                if (e.getButton() == MouseEvent.BUTTON1)
+                    addGameObject(new Brick(e.getX(), e.getY()));
+                else if (e.getButton() == MouseEvent.BUTTON3)
+                    removeGameObject();
+            }
+        });
         add(canvas, BorderLayout.CENTER); // добавляем канву в окно
         setTitle("Circles"); // навание окна
         setVisible(true);  // делаем окно видимым
     }
 
-    public static int getWindowWidth() {
-        return WINDOW_WIDTH;
-    }
 
-    public static int getWindowHeight() {
-        return WINDOW_HEIGHT;
+    /**
+     * Создаем мячи и фон
+     */
+    private void initApplication() {
+        addGameObject(new BGCanvas());
+        addGameObject(new Brick());
     }
 
     /**
-     * Создаем мячи
+     * Удаление спрайтов с экрана
      */
-    private void initApplication() {
-        backGround = new BGCanvas();
-        for (int i = 0; i < sprites.length; i++) {
-            sprites[i] = new Ball();
+    private void removeGameObject() {
+        if (!(gameObjects[gameObjectCount - 1] instanceof BGCanvas))
+            gameObjectCount--;
+    }
+    /**
+     * добавление спрайтов на экран
+     */
+    private void addGameObject(GameObject sprite) {
+        if (gameObjectCount == gameObjects.length) {
+            GameObject[] newGameObjects = new GameObject[gameObjects.length * 2];
+            System.arraycopy(gameObjects, 0, newGameObjects, 0, gameObjects.length);
+            gameObjects = newGameObjects;
         }
+        gameObjects[gameObjectCount++] = sprite;
     }
 
     /**
@@ -70,6 +96,7 @@ public class MainCircles extends JFrame {
      * @param g         обьект графики
      * @param deltaTime сколько времени прошло с предыдущей отрисовки
      */
+    @Override
     public void onDrowFrame(GameCanvas canvas, Graphics g, float deltaTime) {
         update(canvas, deltaTime); // обноврение S=v*t -  расстояние
         render(canvas, g); // отрисовка
@@ -82,9 +109,8 @@ public class MainCircles extends JFrame {
      * @param deltaTime сколько времени прошло
      */
     private void update(GameCanvas canvas, float deltaTime) {
-        backGround.update(canvas, deltaTime);
-        for (int i = 0; i < sprites.length; i++) {
-            sprites[i].update(canvas, deltaTime);
+        for (int i = 0; i < gameObjectCount; i++) {
+            gameObjects[i].update(canvas, deltaTime);
         }
     }
 
@@ -95,9 +121,8 @@ public class MainCircles extends JFrame {
      * @param g      объект графики с помощью которого отрисовать
      */
     private void render(GameCanvas canvas, Graphics g) {
-        backGround.render(canvas, g);
-        for (int i = 0; i < sprites.length; i++) {
-            sprites[i].render(canvas, g);
+        for (int i = 0; i < gameObjectCount; i++) {
+            gameObjects[i].render(canvas, g);
         }
     }
 
