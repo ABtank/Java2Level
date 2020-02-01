@@ -6,10 +6,7 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.PrintStream;
+import java.io.*;
 import java.util.Date;
 
 public class ClientGUI extends JFrame implements ActionListener, KeyListener, Thread.UncaughtExceptionHandler {
@@ -22,7 +19,7 @@ public class ClientGUI extends JFrame implements ActionListener, KeyListener, Th
     private final JTextField tfIPAddress = new JTextField("127.0.0.1");
     private final JTextField tfPort = new JTextField("8189");
     private final JCheckBox cbAlwaysOnTop = new JCheckBox("Alweys on top");
-    private final JTextField tfLogin = new JTextField("Iurii");
+    private final JTextField tfLogin = new JTextField("Login");
     private final JPasswordField tfPassword = new JPasswordField("***");
     private final JButton btnLogin = new JButton("Login");
 
@@ -31,7 +28,7 @@ public class ClientGUI extends JFrame implements ActionListener, KeyListener, Th
     private final JTextArea tfMessage = new JTextArea();
     private final JButton btnSend = new JButton("Send");
 
-
+    private boolean shownIoErrors = false;
 
     /**
      * Лист для юзеров
@@ -114,7 +111,7 @@ public class ClientGUI extends JFrame implements ActionListener, KeyListener, Th
     /**
      * Запись лога в файл
      */
-    private void writeTextInFile() {
+    /*private void writeTextInFile() {
         try {
             FileOutputStream flLog = new FileOutputStream("Log.txt", true);
             PrintStream ps = new PrintStream(flLog);
@@ -126,6 +123,38 @@ public class ClientGUI extends JFrame implements ActionListener, KeyListener, Th
         } catch (IOException f) {
             System.out.println(f.getMessage());
         }
+    }*/
+    private void wrtMsgToLogFile(String msg, String username) {
+        try (FileWriter out = new FileWriter("log.txt", true)) {
+            out.write(username + ": " + msg + "\n");
+            out.flush();
+        } catch (IOException e) {
+            if (!shownIoErrors) {
+                shownIoErrors = true;
+                showException(Thread.currentThread(), e);
+            }
+        }
+    }
+
+    private void sendMessage() {
+        String msg = tfMessage.getText();
+        String username = tfLogin.getText();
+        if ("".equals(msg)) return;
+        tfMessage.setText(null);
+        tfMessage.requestFocusInWindow();
+        putLog(String.format("%s: %s", username, msg));
+        wrtMsgToLogFile(msg, username);
+    }
+
+    private void putLog(String msg) {
+        if ("".equals(msg)) return;
+        SwingUtilities.invokeLater(new Runnable() {
+            @Override
+            public void run() {
+                log.append(msg + "\n");
+                log.setCaretPosition(log.getDocument().getLength());
+            }
+        });
     }
 
     /**
@@ -138,17 +167,11 @@ public class ClientGUI extends JFrame implements ActionListener, KeyListener, Th
         Object src = e.getSource();
         if (src == btnLogin) {
 
-        }
-        if (src == btnDisconnect) {
+        } else if (src == btnDisconnect) {
             System.exit(0);
-        }
-        if (src == btnSend) {
-            System.out.println("send");
-            log.setText(log.getText() + "\n" + tfMessage.getText());
-            tfMessage.setText(null);
-            writeTextInFile();
-        }
-        if (src == cbAlwaysOnTop) {
+        } else if (src == btnSend) {
+            sendMessage();
+        } else if (src == cbAlwaysOnTop) {
             setAlwaysOnTop(cbAlwaysOnTop.isSelected());
         } else {
             throw new RuntimeException("Unknown source:" + src);
@@ -157,21 +180,30 @@ public class ClientGUI extends JFrame implements ActionListener, KeyListener, Th
 
     /**
      * Обрабоотка исключений
+     *
      * @param t
      * @param e
      */
+    private void showException(Thread t, Throwable e) {
+        String msg;
+        StackTraceElement[] ste = e.getStackTrace();
+        if (ste.length == 0)
+            msg = "Empty Stacktrace";
+        else {
+            msg = "Exception in " + t.getName() + " " +
+                    e.getClass().getCanonicalName() + ": " +
+                    e.getMessage() + "\n\t at " + ste[0];
+        }
+        JOptionPane.showMessageDialog(null, msg, "Exception", JOptionPane.ERROR_MESSAGE);
+    }
+
     @Override
     public void uncaughtException(Thread t, Throwable e) {
         e.printStackTrace();
-        String msg;
-        //чтоб получить текст исключения создаем массив
-        StackTraceElement[] ste = e.getStackTrace();
-        msg = "Exception in " + t.getName() + " " +
-                e.getClass().getCanonicalName() + ": " +
-                e.getMessage() + "\n\t at" + ste[0];
-        JOptionPane.showMessageDialog(this, msg, "Exception", JOptionPane.ERROR_MESSAGE);
+        showException(t, e);
         System.exit(1);
     }
+
 
     /**
      * Методы обработки нажатия клавиш
@@ -192,13 +224,9 @@ public class ClientGUI extends JFrame implements ActionListener, KeyListener, Th
 
     @Override
     public void keyReleased(KeyEvent e) {
-        Date date=new Date();
         System.out.print(e.getKeyChar() + "=" + e.getKeyCode() + " ");
         if (e.getKeyCode() == KeyEvent.VK_ENTER) {
-            System.out.println("Enter");
-            log.setText(log.getText() +date.toGMTString()+":\n"+ tfMessage.getText());
-            writeTextInFile();
-            tfMessage.setText(null);
+            sendMessage();
         }
     }
 
