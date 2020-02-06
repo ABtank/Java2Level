@@ -1,18 +1,19 @@
 package ru.gb.jt.chat.client;
 
+import ru.gb.jt.network.SocketThread;
+import ru.gb.jt.network.SocketThreadListener;
+
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.PrintStream;
+import java.io.*;
+import java.net.Socket;
 import java.util.Date;
 
-public class ClientGUI extends JFrame implements ActionListener, KeyListener, Thread.UncaughtExceptionHandler {
+public class ClientGUI extends JFrame implements ActionListener, Thread.UncaughtExceptionHandler, SocketThreadListener {
 
     private static final int WIDTH = 400;
     private static final int HEIGHT = 300;
@@ -28,10 +29,15 @@ public class ClientGUI extends JFrame implements ActionListener, KeyListener, Th
 
     private final JPanel panelBottom = new JPanel(new BorderLayout());
     private final JButton btnDisconnect = new JButton("<html><b><i>Disconnect</i></b></html>");
-    private final JTextArea tfMessage = new JTextArea();
+    private final JTextField tfMessage = new JTextField();
     private final JButton btnSend = new JButton("Send");
 
-
+    private boolean shownIoErrors = false;
+    /**
+     * Создаем сокет треад снаружи.
+     * Т.к. у него будут методы не только в connect()
+     */
+    private SocketThread socketThread;
 
     /**
      * Лист для юзеров
@@ -70,9 +76,9 @@ public class ClientGUI extends JFrame implements ActionListener, KeyListener, Th
         btnSend.addActionListener(this);
         btnDisconnect.addActionListener(this);
         btnLogin.addActionListener(this);
-        tfMessage.addKeyListener(this);
+        tfMessage.addActionListener(this);
 
-        btnSend.setFocusable(false);
+        //btnSend.setFocusable(false);
 
         /**
          * Добавляем элементы на панель Top
@@ -100,6 +106,19 @@ public class ClientGUI extends JFrame implements ActionListener, KeyListener, Th
         setVisible(true);
     }
 
+    /**
+     * Создание своего сокета. Получаем IP адрес и port
+     * Создаем скеттреад
+     */
+    private void connect() {
+        try {
+            Socket socket = new Socket(tfIPAddress.getText(), Integer.parseInt(tfPort.getText()));
+            socketThread = new SocketThread(this, "Client", socket);
+        } catch (IOException e) {
+            showException(Thread.currentThread(), e);
+        }
+    }
+
     public static void main(String[] args) {
         SwingUtilities.invokeLater(new Runnable() {
             @Override
@@ -112,28 +131,11 @@ public class ClientGUI extends JFrame implements ActionListener, KeyListener, Th
     }
 
     /**
-     * Запись лога в файл
-     */
-    private void writeTextInFile() {
-        try {
-            FileOutputStream flLog = new FileOutputStream("Log.txt", true);
-            PrintStream ps = new PrintStream(flLog);
-            ps.print(log.getText());
-            //flLog.write(log.getText().getBytes());
-            //flLog.close();
-        } catch (FileNotFoundException f) {
-            f.printStackTrace();
-        } catch (IOException f) {
-            System.out.println(f.getMessage());
-        }
-    }
-
-    /**
      * Обработка нажатий кнопок на панели
      *
      * @param e
      */
-    @Override
+    /*@Override
     public void actionPerformed(ActionEvent e) {
         Object src = e.getSource();
         if (src == btnLogin) {
@@ -153,53 +155,136 @@ public class ClientGUI extends JFrame implements ActionListener, KeyListener, Th
         } else {
             throw new RuntimeException("Unknown source:" + src);
         }
+    }*/
+    @Override
+    public void actionPerformed(ActionEvent e) {
+        Object src = e.getSource();
+        if (src == cbAlwaysOnTop) {
+            setAlwaysOnTop(cbAlwaysOnTop.isSelected());
+        } else if (src == btnSend || src == tfMessage) {
+            sendMessage();
+        } else if (src == btnLogin) {
+            connect();
+        } else if (src == btnDisconnect) {
+                if (socketThread == null) {
+                    System.out.println("Client is not connect");
+                } else {
+                    String msg = tfMessage.getText();
+                    socketThread.sendMassage(msg);
+                    socketThread.interrupt();
+                }
+        } else {
+            throw new RuntimeException("Unknown source: " + src);
+        }
+    }
+
+    /**
+     * Составление строки сообщения и отправка его в лог + запись в файл
+     */
+    private void sendMessage() {
+        String msg = tfMessage.getText();
+        String username = tfLogin.getText();
+        if ("".equals(msg)) return;
+        tfMessage.setText(null);
+        tfMessage.requestFocusInWindow();
+        socketThread.sendMassage(msg);
+        // putLog(String.format("%s: %s", username, msg));
+//        wrtMsgToLogFile(msg, username);
+    }
+
+    /**
+     * Запись лога в файл
+     */
+    private void wrtMsgToLogFile(String msg, String username) {
+        try (FileWriter out = new FileWriter("log.txt", true)) {
+            out.write(username + ": " + msg + "\n");
+            out.flush();
+        } catch (IOException e) {
+            if (!shownIoErrors) {
+                shownIoErrors = true;
+                showException(Thread.currentThread(), e);
+            }
+        }
+    }
+
+    /**
+     * Добавление строки в гол в отдельном потоке
+     * Все что происходит в графическом интерфейсе происходит в спец потоке EventDespetcherThread
+     * кторый мы запускаем методом SwingUtilities.invokeLater(new Runnable()
+     */
+    private void putLog(String msg) {
+        if ("".equals(msg)) return;
+        SwingUtilities.invokeLater(new Runnable() {
+            @Override
+            public void run() {
+                log.append(msg + "\n");
+                log.setCaretPosition(log.getDocument().getLength());
+            }
+        });
+    }
+
+    /**
+     * Получение массива строк текста исключения
+     * Составление строки с самой важной информацией
+     * Вывод ошибки в диалоговом окне
+     */
+    private void showException(Thread t, Throwable e) {
+        String msg;
+        //чтоб получить текст исключения создаем массив
+        StackTraceElement[] ste = e.getStackTrace();
+        if (ste.length == 0) {
+            msg = "Empty Stacktrace";
+        } else {
+            msg = "Exception in " + t.getName() + " " +
+                    e.getClass().getCanonicalName() + ": " +
+                    e.getMessage() + "\n\t at" + ste[0];
+        }
+        JOptionPane.showMessageDialog(this, msg, "Exception", JOptionPane.ERROR_MESSAGE);
     }
 
     /**
      * Обрабоотка исключений
-     * @param t
-     * @param e
+     *
+     * @param t поток
+     * @param e исключение
      */
     @Override
     public void uncaughtException(Thread t, Throwable e) {
         e.printStackTrace();
-        String msg;
-        //чтоб получить текст исключения создаем массив
-        StackTraceElement[] ste = e.getStackTrace();
-        msg = "Exception in " + t.getName() + " " +
-                e.getClass().getCanonicalName() + ": " +
-                e.getMessage() + "\n\t at" + ste[0];
-        JOptionPane.showMessageDialog(this, msg, "Exception", JOptionPane.ERROR_MESSAGE);
+        showException(t, e);
         System.exit(1);
     }
 
     /**
-     * Методы обработки нажатия клавиш
-     *
-     * @keyTyped - кроткое нажатие на клавишу
-     * @keyPressed - длинные одновременные нажатия
-     * @keyReleased - когда клавишу отжимаем, получаем событие в данном методе
+     * Socket thread listener methods
      */
 
     @Override
-    public void keyTyped(KeyEvent e) {
-
+    public void onSocketStart(SocketThread thread, Socket socket) {
+        putLog("Start");
     }
 
     @Override
-    public void keyPressed(KeyEvent e) {
+    public void onSocketStop(SocketThread thread) {
+        putLog("Stop");
     }
 
     @Override
-    public void keyReleased(KeyEvent e) {
-        Date date=new Date();
-        System.out.print(e.getKeyChar() + "=" + e.getKeyCode() + " ");
-        if (e.getKeyCode() == KeyEvent.VK_ENTER) {
-            System.out.println("Enter");
-            log.setText(log.getText() +date.toGMTString()+":\n"+ tfMessage.getText());
-            writeTextInFile();
-            tfMessage.setText(null);
-        }
+    public void onSocketReady(SocketThread thread, Socket socket) {
+        putLog("Ready");
     }
 
+    /**
+     * Обработка получения строки
+     */
+    @Override
+    public void onReceiveString(SocketThread thread, Socket socket, String msg) {
+        putLog(msg);
+    }
+
+    @Override
+    public void onSocketException(SocketThread thread, Exception exception) {
+        showException(thread, exception);
+    }
 }
+

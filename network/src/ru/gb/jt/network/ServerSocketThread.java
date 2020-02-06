@@ -21,9 +21,6 @@ public class ServerSocketThread extends Thread {
     /**
      * при создании потока сервака
      * @param listener Слушатель событий. Мы требуем чтобы нас кто-то слушал.
-     * @param name
-     * @param port
-     * @param timeout
      */
     public ServerSocketThread(ServerSockedThreadListener listener,String name, int port,int timeout) {
         super(name);

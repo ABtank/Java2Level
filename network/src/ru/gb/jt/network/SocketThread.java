@@ -48,6 +48,11 @@ public class SocketThread extends Thread {
         }
     }
 
+    /**
+     * Отправка сообщения в выходящий поток текущего сокета
+     * @param msg
+     * @return
+     */
     public synchronized boolean sendMassage(String msg){
        try{
            out.writeUTF(msg);

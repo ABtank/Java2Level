@@ -37,6 +37,7 @@ public class ChatServer implements ServerSockedThreadListener, SocketThreadListe
 
     private void putLog(String msg) {
         msg = DATE_FORMAT.format(System.currentTimeMillis()) + Thread.currentThread().getName() + ": " + msg;
+        System.out.println(msg);
     }
 
 
