@@ -53,7 +53,7 @@ public class SocketThread extends Thread {
      * @param msg
      * @return
      */
-    public synchronized boolean sendMassage(String msg){
+    public synchronized boolean sendMessage(String msg){
        try{
            out.writeUTF(msg);
            out.flush();

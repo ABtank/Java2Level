@@ -1,5 +1,6 @@
 package ru.gb.jt.chat.client;
 
+import ru.gb.jt.chat.common.Library;
 import ru.gb.jt.network.SocketThread;
 import ru.gb.jt.network.SocketThreadListener;
 
@@ -15,7 +16,7 @@ import java.util.Date;
 
 public class ClientGUI extends JFrame implements ActionListener, Thread.UncaughtExceptionHandler, SocketThreadListener {
 
-    private static final int WIDTH = 400;
+    private static final int WIDTH = 600;
     private static final int HEIGHT = 300;
 
     private final JTextArea log = new JTextArea();
@@ -49,6 +50,7 @@ public class ClientGUI extends JFrame implements ActionListener, Thread.Uncaught
         setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);//установка по центру экрана
         setSize(WIDTH, HEIGHT);
+        log.setLineWrap(true);
         setTitle("Client GUI");
         log.setEditable(false);//запрещаем писать непосредственно в данном поле
 
@@ -69,6 +71,7 @@ public class ClientGUI extends JFrame implements ActionListener, Thread.Uncaught
          */
         scrollUser.setPreferredSize(new Dimension(100, 0));
         panelBottom.setPreferredSize(new Dimension(WIDTH, 60));
+        panelBottom.setVisible(false);
         /**
          * Создаем листнеры
          */
@@ -166,13 +169,7 @@ public class ClientGUI extends JFrame implements ActionListener, Thread.Uncaught
         } else if (src == btnLogin) {
             connect();
         } else if (src == btnDisconnect) {
-                if (socketThread == null) {
-                    System.out.println("Client is not connect");
-                } else {
-                    String msg = tfMessage.getText();
-                    socketThread.sendMassage(msg);
-                    socketThread.interrupt();
-                }
+                socketThread.close();
         } else {
             throw new RuntimeException("Unknown source: " + src);
         }
@@ -187,7 +184,7 @@ public class ClientGUI extends JFrame implements ActionListener, Thread.Uncaught
         if ("".equals(msg)) return;
         tfMessage.setText(null);
         tfMessage.requestFocusInWindow();
-        socketThread.sendMassage(msg);
+        socketThread.sendMessage(msg);
         // putLog(String.format("%s: %s", username, msg));
 //        wrtMsgToLogFile(msg, username);
     }
@@ -244,7 +241,7 @@ public class ClientGUI extends JFrame implements ActionListener, Thread.Uncaught
 
     /**
      * Обрабоотка исключений
-     *
+     * Стандартный обработчик исклюений который ловит исключения
      * @param t поток
      * @param e исключение
      */
@@ -267,11 +264,18 @@ public class ClientGUI extends JFrame implements ActionListener, Thread.Uncaught
     @Override
     public void onSocketStop(SocketThread thread) {
         putLog("Stop");
+        panelTop.setVisible(true);
+        panelBottom.setVisible(false);
     }
 
     @Override
     public void onSocketReady(SocketThread thread, Socket socket) {
         putLog("Ready");
+        panelTop.setVisible(false);
+        panelBottom.setVisible(true);
+        String login = tfLogin.getText();
+        String password = new String(tfPassword.getPassword());
+        thread.sendMessage(Library.getAuthRequest(login,password));
     }
 
     /**
@@ -284,7 +288,7 @@ public class ClientGUI extends JFrame implements ActionListener, Thread.Uncaught
 
     @Override
     public void onSocketException(SocketThread thread, Exception exception) {
-        showException(thread, exception);
+      //  showException(thread, exception);
     }
 }
 

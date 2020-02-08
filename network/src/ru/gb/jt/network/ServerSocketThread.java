@@ -48,7 +48,7 @@ public class ServerSocketThread extends Thread {
                 try {
                     socket = server.accept();
                 } catch (SocketTimeoutException e) {
-                    listener.onServerException(this,e);  //сообщает об исключениях
+                    listener.onServerTimeout(this,server);  //сообщает об исключениях
                     continue;
                 }
                 listener.onSocketAccepted(this,server,socket);  //сообщает о соединении
