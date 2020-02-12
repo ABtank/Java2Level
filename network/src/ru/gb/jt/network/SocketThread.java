@@ -65,6 +65,9 @@ public class SocketThread extends Thread {
        }
     }
 
+    /**
+     *
+     */
     public synchronized void close() {
         interrupt();
         try{

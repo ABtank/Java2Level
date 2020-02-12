@@ -12,8 +12,15 @@ import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
 import java.io.*;
 import java.net.Socket;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.Arrays;
 import java.util.Date;
 
+
+/**
+ * Хранит в себе только свой Socket
+ */
 public class ClientGUI extends JFrame implements ActionListener, Thread.UncaughtExceptionHandler, SocketThreadListener {
 
     private static final int WIDTH = 600;
@@ -25,13 +32,16 @@ public class ClientGUI extends JFrame implements ActionListener, Thread.Uncaught
     private final JTextField tfPort = new JTextField("8189");
     private final JCheckBox cbAlwaysOnTop = new JCheckBox("Alweys on top");
     private final JTextField tfLogin = new JTextField("Iurii");
-    private final JPasswordField tfPassword = new JPasswordField("***");
+    private final JPasswordField tfPassword = new JPasswordField("123");
     private final JButton btnLogin = new JButton("Login");
 
     private final JPanel panelBottom = new JPanel(new BorderLayout());
     private final JButton btnDisconnect = new JButton("<html><b><i>Disconnect</i></b></html>");
     private final JTextField tfMessage = new JTextField();
     private final JButton btnSend = new JButton("Send");
+    private final String WINDOW_TITLE = "Chat: ";
+
+    private final DateFormat DATE_FORMAT = new SimpleDateFormat("HH:mm:ss: ");
 
     private boolean shownIoErrors = false;
     /**
@@ -51,7 +61,7 @@ public class ClientGUI extends JFrame implements ActionListener, Thread.Uncaught
         setLocationRelativeTo(null);//установка по центру экрана
         setSize(WIDTH, HEIGHT);
         log.setLineWrap(true);
-        setTitle("Client GUI");
+        setTitle(WINDOW_TITLE);
         log.setEditable(false);//запрещаем писать непосредственно в данном поле
 
         /**
@@ -111,7 +121,7 @@ public class ClientGUI extends JFrame implements ActionListener, Thread.Uncaught
 
     /**
      * Создание своего сокета. Получаем IP адрес и port
-     * Создаем скеттреад
+     * Создаем сокеттреад
      */
     private void connect() {
         try {
@@ -138,27 +148,6 @@ public class ClientGUI extends JFrame implements ActionListener, Thread.Uncaught
      *
      * @param e
      */
-    /*@Override
-    public void actionPerformed(ActionEvent e) {
-        Object src = e.getSource();
-        if (src == btnLogin) {
-
-        }
-        if (src == btnDisconnect) {
-            System.exit(0);
-        }
-        if (src == btnSend) {
-            System.out.println("send");
-            log.setText(log.getText() + "\n" + tfMessage.getText());
-            tfMessage.setText(null);
-            writeTextInFile();
-        }
-        if (src == cbAlwaysOnTop) {
-            setAlwaysOnTop(cbAlwaysOnTop.isSelected());
-        } else {
-            throw new RuntimeException("Unknown source:" + src);
-        }
-    }*/
     @Override
     public void actionPerformed(ActionEvent e) {
         Object src = e.getSource();
@@ -169,7 +158,7 @@ public class ClientGUI extends JFrame implements ActionListener, Thread.Uncaught
         } else if (src == btnLogin) {
             connect();
         } else if (src == btnDisconnect) {
-                socketThread.close();
+            socketThread.close();
         } else {
             throw new RuntimeException("Unknown source: " + src);
         }
@@ -184,7 +173,7 @@ public class ClientGUI extends JFrame implements ActionListener, Thread.Uncaught
         if ("".equals(msg)) return;
         tfMessage.setText(null);
         tfMessage.requestFocusInWindow();
-        socketThread.sendMessage(msg);
+        socketThread.sendMessage(Library.getTypeBcastClient(msg));
         // putLog(String.format("%s: %s", username, msg));
 //        wrtMsgToLogFile(msg, username);
     }
@@ -242,6 +231,7 @@ public class ClientGUI extends JFrame implements ActionListener, Thread.Uncaught
     /**
      * Обрабоотка исключений
      * Стандартный обработчик исклюений который ловит исключения
+     *
      * @param t поток
      * @param e исключение
      */
@@ -266,6 +256,8 @@ public class ClientGUI extends JFrame implements ActionListener, Thread.Uncaught
         putLog("Stop");
         panelTop.setVisible(true);
         panelBottom.setVisible(false);
+        setTitle(WINDOW_TITLE);
+        userList.setListData(new String[0]);
     }
 
     @Override
@@ -275,7 +267,7 @@ public class ClientGUI extends JFrame implements ActionListener, Thread.Uncaught
         panelBottom.setVisible(true);
         String login = tfLogin.getText();
         String password = new String(tfPassword.getPassword());
-        thread.sendMessage(Library.getAuthRequest(login,password));
+        thread.sendMessage(Library.getAuthRequest(login, password));
     }
 
     /**
@@ -283,12 +275,45 @@ public class ClientGUI extends JFrame implements ActionListener, Thread.Uncaught
      */
     @Override
     public void onReceiveString(SocketThread thread, Socket socket, String msg) {
-        putLog(msg);
+        handleMessage(msg);
     }
 
     @Override
     public void onSocketException(SocketThread thread, Exception exception) {
-      //  showException(thread, exception);
+        //  showException(thread, exception);
+    }
+
+    private void handleMessage(String msg) {
+        String[] arr = msg.split(Library.DELIMITER);
+        String msgType = arr[0];
+        switch (msgType) {
+            case Library.AUTH_ACCEPT:
+                setTitle(WINDOW_TITLE + " entered with nickname" + arr[1]);
+                break;
+            case Library.AUTH_DENIED:
+                putLog(msg);
+                break;
+            case Library.MSG_FORMAT_ERROR:
+                putLog(msg);
+                socketThread.close();
+                break;
+            case Library.TYPE_BROADCAST:
+                putLog(DATE_FORMAT.format(Long.parseLong(arr[1])) +
+                        arr[2] + ": " + arr[3]);
+                break;
+            case Library.USER_LIST:
+                //создаем строку без префикса
+                String users = msg.substring(Library.USER_LIST.length() +
+                        Library.DELIMITER.length());
+                String[] usersArr = users.split(Library.DELIMITER);
+                Arrays.sort(usersArr);//сортируем
+                userList.setListData(usersArr); // добавляем клиентов в Jlist
+                break;
+            case Library.TYPE_BCAST_CLIENT:
+                break;
+            default:
+                throw new RuntimeException("Unknown message format: " + msg);
+        }
     }
 }
 

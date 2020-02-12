@@ -14,7 +14,7 @@ import java.text.SimpleDateFormat;
 import java.util.Vector;
 
 /**
- *
+ * Хранит информацию о всех подключенных Socket и через подключенный класс Socket их генерит
  */
 public class ChatServer implements ServerSockedThreadListener, SocketThreadListener {
 
@@ -68,6 +68,9 @@ public class ChatServer implements ServerSockedThreadListener, SocketThreadListe
     public void onServerStop(ServerSocketThread thread) {
         putLog("Server thread stopped");
         SqlClient.disConnect();
+        for (int i = 0; i <clients.size() ; i++) {
+            clients.get(i).close();
+        }
     }
 
     @Override
@@ -113,8 +116,13 @@ public class ChatServer implements ServerSockedThreadListener, SocketThreadListe
 
     @Override
     public synchronized void onSocketStop(SocketThread thread) {
-        putLog("Socket stopped");
+        ClientThread client = (ClientThread) thread;
         clients.remove(thread);
+        if (client.isAuthorized() && !client.isReconnecting()) {
+            sendToAuthClients(Library.getTypeBroadcast("Server",
+                    client.getNickname() + " disconnected"));
+        }
+        sendToAuthClients(Library.getUserList(getUsers()));
     }
 
     @Override
@@ -157,18 +165,35 @@ public class ChatServer implements ServerSockedThreadListener, SocketThreadListe
             putLog("Invalid login attempt" + login);
             client.authFail();
             return;
+        }else {
+            ClientThread oldClient = findClientByNickname(nickname);
+            client.authAccept(nickname);
+            if(oldClient==null){
+                sendToAuthClients(Library.getTypeBroadcast("Server", nickname + "connected"));
+            }else{
+                oldClient.reconnect();
+                clients.remove(oldClient);
+            }
         }
-        client.authAccept(nickname);
-        sendToAuthClients(Library.getTypeBroadcast("Server",nickname+"connected"));
+        sendToAuthClients(Library.getUserList(getUsers()));
     }
 
     /**
      * Сообщение авторизованным
      *
-     * @param thread
+     * @param
      * @param msg
      */
-    private void handleAuthMessage(ClientThread thread, String msg) {
+    private void handleAuthMessage(ClientThread client, String msg) {
+        String[] arr =msg.split(Library.DELIMITER);
+        String msgType= arr[0];
+        switch (msgType){
+            case Library.TYPE_BCAST_CLIENT:
+                sendToAuthClients(Library.getTypeBroadcast(client.getNickname(), arr[1]));
+                break;
+            default:
+                client.sendMessage(Library.getMsgFormatError(msg));
+        }
         sendToAuthClients(msg);
     }
 
@@ -188,6 +213,34 @@ public class ChatServer implements ServerSockedThreadListener, SocketThreadListe
 
     @Override
     public synchronized void onSocketException(SocketThread thread, Exception exception) {
-        // exception.printStackTrace();
+        exception.printStackTrace();
+    }
+
+    /**
+     * Формируем строку с пользователями
+     *
+     * @return строка с пользователями
+     */
+    public String getUsers() {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < clients.size(); i++) {
+            ClientThread client = (ClientThread) clients.get(i);
+            if (!client.isAuthorized()) continue;
+            sb.append(client.getNickname()).append(Library.DELIMITER);
+        }
+        return sb.toString();
+    }
+
+    private synchronized ClientThread findClientByNickname(String nickname) {
+        for (int i = 0; i < clients.size(); i++) {
+            ClientThread client = (ClientThread) clients.get(i);
+            if (!client.isAuthorized()) {
+                continue;
+            }
+            if (client.getNickname().equals(nickname)) {
+                return client;
+            }
+        }
+        return null;
     }
 }

@@ -52,7 +52,6 @@ public class ServerGUI extends JFrame implements ActionListener, Thread.Uncaught
          *
          */
         Thread.setDefaultUncaughtExceptionHandler(this);
-        //рисуем окно
         setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
         setBounds(POS_X, POS_Y, WIDTH, HEIGHT);
         setResizable(false);
@@ -63,20 +62,8 @@ public class ServerGUI extends JFrame implements ActionListener, Thread.Uncaught
         log.setLineWrap(true);
         JScrollPane scrollPane = new JScrollPane(log);
 
-        /**
-         * Первый способ
-         */
-        /*
-        btnStop.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                chatServer.stop();
-            }
-        });
-        */
 
         /**
-         * Второй способ
          * имплементим в класс конструктор ActionListener
          * переопределяем метод
          */
