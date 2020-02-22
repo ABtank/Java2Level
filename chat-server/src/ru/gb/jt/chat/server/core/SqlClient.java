@@ -4,9 +4,6 @@ import java.sql.*;
 
 public class SqlClient {
 
-    /**
-     * База Sql
-     */
 
     /**
      * Для подключения необходим обьект соединения
@@ -19,8 +16,9 @@ public class SqlClient {
      */
     private static Statement statement;
 
+
     /**
-     * Подключается к серверу
+     * Подключается к БД
      */
     synchronized static void connect() {
         try {
@@ -31,6 +29,16 @@ public class SqlClient {
             throw new RuntimeException(e);
         }
     }
+
+    // --------Создание таблицы--------
+    /*public static void CreateDB () throws ClassNotFoundException, SQLException
+    {
+        statmt = conn.createStatement();
+        statmt.execute("CREATE TABLE if not exists 'users' ('id' INTEGER PRIMARY KEY AUTOINCREMENT, 'name' text, 'phone' INT);");
+
+        System.out.println("Таблица создана или уже существует.");
+    }
+*/
 
     /**
      * Отключается от сервера
@@ -54,8 +62,8 @@ public class SqlClient {
      */
     synchronized static String getNickname(String login, String password) {
         String query = String.format("select nickname from users where login='%s' and password='%s'", login, password);
-        try (ResultSet set = statement.executeQuery(query)) {
-            if (set.next()) {
+        try (ResultSet set = statement.executeQuery(query)) {// получаем запрос в ResaltSet
+            if (set.next()) { //из полученного запроса вытаскиваем nickName
                 return set.getString(1);// нумерация колонок в Sql начинается с 1.
             }
         } catch (SQLException e) {
@@ -63,5 +71,36 @@ public class SqlClient {
         }
         return null;
     }
+
+    /**
+     * Регистрация пользователя
+     *
+     * @param nickName
+     * @param login
+     * @param password
+     * @return
+     */
+    synchronized static void setNewClient(String nickName, String login, String password) {
+        try {
+                String register = String.format("INSERT INTO users ('login', 'password','nickname') VALUES (%s,%s,%s); ", login, password, nickName);
+                statement.execute(register);
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    synchronized static boolean getNotExistsNickName(String nickName) {
+        String query = String.format("select nickname from users where nickname='%s'", nickName);
+        try (ResultSet set = statement.executeQuery(query)) {// получаем запрос в ResultSet
+            if (!set.next()) {
+                return true;// нумерация колонок в Sql начинается с 1.
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+        return false;
+    }
+
+
 
 }
