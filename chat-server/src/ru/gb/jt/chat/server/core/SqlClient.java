@@ -73,24 +73,36 @@ public class SqlClient {
     }
 
     /**
+     * Смена никнейма
+     */
+    synchronized static void setReNickname(String nickname,String login, String password) {
+        try {
+            String reNickname = String.format("UPDATE users SET'nickname'='%s' where login='%s' and password='%s';",nickname, login, password);
+            statement.execute(reNickname);
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    /**
      * Регистрация пользователя
      *
-     * @param nickName
+     * @param nickname
      * @param login
      * @param password
      * @return
      */
-    synchronized static void setNewClient(String nickName, String login, String password) {
+    synchronized static void setNewClient(String nickname, String login, String password) {
         try {
-                String register = String.format("INSERT INTO users ('login', 'password','nickname') VALUES (%s,%s,%s); ", login, password, nickName);
+                String register = String.format("INSERT INTO users ('login', 'password','nickname') VALUES ('%s','%s','%s'); ", login, password, nickname);
                 statement.execute(register);
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
     }
 
-    synchronized static boolean getNotExistsNickName(String nickName) {
-        String query = String.format("select nickname from users where nickname='%s'", nickName);
+    synchronized static boolean getNotExistsClient(String nickname,String login) {
+        String query = String.format("select nickname, login from users where nickname='%s' or login='%s'", nickname, login);
         try (ResultSet set = statement.executeQuery(query)) {// получаем запрос в ResultSet
             if (!set.next()) {
                 return true;// нумерация колонок в Sql начинается с 1.
@@ -100,7 +112,6 @@ public class SqlClient {
         }
         return false;
     }
-
 
 
 }

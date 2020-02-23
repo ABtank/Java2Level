@@ -56,4 +56,9 @@ public class ClientThread extends SocketThread {
         close();
     }
 
+    void msgRegistrationDenied(String nickname, String login){
+       sendMessage(Library.registrationDenied(nickname,login));
+        close();
+    }
+
 }

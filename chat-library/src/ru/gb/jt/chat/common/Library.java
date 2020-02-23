@@ -3,7 +3,6 @@ package ru.gb.jt.chat.common;
 /**
  * Высокоуровневый прортокол чата.
  * взаимодействие клиента и сервера
- *
  */
 public class Library {
     /*
@@ -24,8 +23,8 @@ public class Library {
     public static final String TYPE_BROADCAST = "/bcast";
     public static final String TYPE_BCAST_CLIENT = "/client_msg";
     public static final String USER_LIST = "/user_list";
-
     public static final String AUTH_NEW_CLIENT_REQUEST = "/auth_new_client_request";
+    public static final String REGISTRATION_DENIED = "/registration_denied";
 
     public static String getTypeBcastClient(String msg) {
         return TYPE_BCAST_CLIENT + DELIMITER + msg;
@@ -47,6 +46,10 @@ public class Library {
         return AUTH_DENIED;
     }
 
+    public static String registrationDenied(String nickname, String login) {
+        return REGISTRATION_DENIED + DELIMITER + nickname + DELIMITER + login;
+    }
+
     public static String getMsgFormatError(String message) {
         return MSG_FORMAT_ERROR + DELIMITER + message;
     }
@@ -57,7 +60,7 @@ public class Library {
     }
 
     public static String getAuthNewClientRequest(String login, String password, String nickName) {
-        return AUTH_NEW_CLIENT_REQUEST + DELIMITER + login + DELIMITER + password+ DELIMITER + nickName;
+        return AUTH_NEW_CLIENT_REQUEST + DELIMITER + login + DELIMITER + password + DELIMITER + nickName;
     }
 
 }

@@ -23,18 +23,18 @@ import java.util.Date;
  */
 public class ClientGUI extends JFrame implements ActionListener, Thread.UncaughtExceptionHandler, SocketThreadListener {
 
-    private static final int WIDTH = 600;
+    private static final int WIDTH = 800;
     private static final int HEIGHT = 300;
 
     private final JTextArea log = new JTextArea();
     private final JPanel panelTop = new JPanel(new GridLayout(2, 4));
     private final JTextField tfIPAddress = new JTextField("127.0.0.1");
     private final JTextField tfPort = new JTextField("8189");
-    private final JCheckBox cbAlwaysOnTop = new JCheckBox("Alweys on top");
+    private final JCheckBox cbAlwaysOnTop = new JCheckBox("Always on top");
     private final JTextField tfLogin = new JTextField("Iurii");
     private final JPasswordField tfPassword = new JPasswordField("123");
     private final JButton btnLogin = new JButton("Login");
-    private final JButton btnRegistration = new JButton("Registration");
+    private final JButton btnRegistration = new JButton("Registration/rename");
     private final JTextField tfNickName = new JTextField(null);
 
     private final JPanel panelBottom = new JPanel(new BorderLayout());
@@ -77,7 +77,7 @@ public class ClientGUI extends JFrame implements ActionListener, Thread.Uncaught
         /**
          * Создали список с юзерами
          */
-        String[] users = {"user1", "user2", "user3", "user4", "user5", "user_with_a_efwpvd"};
+        String[] users = {"Welcome", "to", "our", "chat"};
         userList.setListData(users);
         /**
          * Установка размера окна с юзерами
@@ -171,6 +171,9 @@ public class ClientGUI extends JFrame implements ActionListener, Thread.Uncaught
         } else if (src == btnRegistration) {
             boolRegistration = true;
             tfNickName.setVisible(true);
+            btnRegistration.setVisible(false);
+            btnLogin.setText("Get registry, or rename");
+
         } else {
             throw new RuntimeException("Unknown source: " + src);
         }
@@ -281,6 +284,10 @@ public class ClientGUI extends JFrame implements ActionListener, Thread.Uncaught
         if (boolRegistration) {
             String nickName = tfNickName.getText();
             thread.sendMessage(Library.getAuthNewClientRequest(login, password, nickName));
+            tfNickName.setVisible(false);
+            btnRegistration.setVisible(true);
+            btnLogin.setText("Login");
+            boolRegistration = false;
         } else {
             thread.sendMessage(Library.getAuthRequest(login, password));
         }
@@ -323,6 +330,9 @@ public class ClientGUI extends JFrame implements ActionListener, Thread.Uncaught
                 String[] usersArr = users.split(Library.DELIMITER);
                 Arrays.sort(usersArr);
                 userList.setListData(usersArr);
+                break;
+            case Library.REGISTRATION_DENIED:
+                putLog(" Nickname: " + arr[1] + " or login: " + arr[2] + " if exists.");
                 break;
             default:
                 throw new RuntimeException("Unknown message type: " + msg);

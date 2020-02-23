@@ -153,16 +153,18 @@ public class ChatServer implements ServerSockedThreadListener, SocketThreadListe
      */
     private void handleNonAuthMessage(ClientThread client, String msg) {
         String[] arr = msg.split(Library.DELIMITER);
-        if (arr[0].equals((Library.AUTH_NEW_CLIENT_REQUEST))) {
+        if (arr[0].equals((Library.AUTH_NEW_CLIENT_REQUEST)) && arr.length == 4) {
             String nickname = arr[3];
-            if (SqlClient.getNotExistsNickName(nickname)) {
-                String login = arr[1];
-                String password = arr[2];
+            String login = arr[1];
+            String password = arr[2];
+            if (null!=SqlClient.getNickname(login, password)) {
+                SqlClient.setReNickname(nickname,login,password);
+            } else if (SqlClient.getNotExistsClient(nickname, login)) {
                 SqlClient.setNewClient(nickname, login, password);
                 sendToAuthClients(Library.getTypeBroadcast("Server", nickname + "connected"));
             } else {
-                putLog("Nickname: " + nickname + "if exists.");
-                client.msgFormatError(msg);
+                putLog("REGISTRATION FAIL. Nickname: " + nickname + " or login: " + login + " if exists.");
+                client.msgRegistrationDenied(nickname, login);
                 return;
             }
         } else if (arr.length != 3 || !arr[0].equals(Library.AUTH_REQUEST)) {
