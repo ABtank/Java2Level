@@ -23,17 +23,19 @@ import java.util.Date;
  */
 public class ClientGUI extends JFrame implements ActionListener, Thread.UncaughtExceptionHandler, SocketThreadListener {
 
-    private static final int WIDTH = 600;
+    private static final int WIDTH = 800;
     private static final int HEIGHT = 300;
 
     private final JTextArea log = new JTextArea();
-    private final JPanel panelTop = new JPanel(new GridLayout(2, 3));
+    private final JPanel panelTop = new JPanel(new GridLayout(2, 4));
     private final JTextField tfIPAddress = new JTextField("127.0.0.1");
     private final JTextField tfPort = new JTextField("8189");
-    private final JCheckBox cbAlwaysOnTop = new JCheckBox("Alweys on top");
+    private final JCheckBox cbAlwaysOnTop = new JCheckBox("Always on top");
     private final JTextField tfLogin = new JTextField("Iurii");
     private final JPasswordField tfPassword = new JPasswordField("123");
     private final JButton btnLogin = new JButton("Login");
+    private final JButton btnRegistration = new JButton("Registration/rename");
+    private final JTextField tfNickName = new JTextField(null);
 
     private final JPanel panelBottom = new JPanel(new BorderLayout());
     private final JButton btnDisconnect = new JButton("<html><b><i>Disconnect</i></b></html>");
@@ -43,6 +45,7 @@ public class ClientGUI extends JFrame implements ActionListener, Thread.Uncaught
 
     private final DateFormat DATE_FORMAT = new SimpleDateFormat("HH:mm:ss: ");
 
+    private boolean boolRegistration = false;
     private boolean shownIoErrors = false;
     /**
      * Создаем сокет треад снаружи.
@@ -74,7 +77,7 @@ public class ClientGUI extends JFrame implements ActionListener, Thread.Uncaught
         /**
          * Создали список с юзерами
          */
-        String[] users = {"user1", "user2", "user3", "user4", "user5", "user_with_a_efwpvd"};
+        String[] users = {"Welcome", "to", "our", "chat"};
         userList.setListData(users);
         /**
          * Установка размера окна с юзерами
@@ -90,6 +93,7 @@ public class ClientGUI extends JFrame implements ActionListener, Thread.Uncaught
         btnDisconnect.addActionListener(this);
         btnLogin.addActionListener(this);
         tfMessage.addActionListener(this);
+        btnRegistration.addActionListener(this);
 
         //btnSend.setFocusable(false);
 
@@ -99,9 +103,14 @@ public class ClientGUI extends JFrame implements ActionListener, Thread.Uncaught
         panelTop.add(tfIPAddress);
         panelTop.add(tfPort);
         panelTop.add(cbAlwaysOnTop);
+        panelTop.add(btnRegistration);
         panelTop.add(tfLogin);
         panelTop.add(tfPassword);
+        panelTop.add(tfNickName);
         panelTop.add(btnLogin);
+        tfNickName.setVisible(false);
+
+
         /**
          * Добавляем элементы на панель Bottom
          */
@@ -159,10 +168,17 @@ public class ClientGUI extends JFrame implements ActionListener, Thread.Uncaught
             connect();
         } else if (src == btnDisconnect) {
             socketThread.close();
+        } else if (src == btnRegistration) {
+            boolRegistration = true;
+            tfNickName.setVisible(true);
+            btnRegistration.setVisible(false);
+            btnLogin.setText("Get registry, or rename");
+
         } else {
             throw new RuntimeException("Unknown source: " + src);
         }
     }
+
 
     /**
      * Составление строки сообщения и отправка его в лог + запись в файл
@@ -253,21 +269,28 @@ public class ClientGUI extends JFrame implements ActionListener, Thread.Uncaught
 
     @Override
     public void onSocketStop(SocketThread thread) {
-        putLog("Stop");
-        panelTop.setVisible(true);
         panelBottom.setVisible(false);
+        panelTop.setVisible(true);
         setTitle(WINDOW_TITLE);
         userList.setListData(new String[0]);
     }
 
     @Override
     public void onSocketReady(SocketThread thread, Socket socket) {
-        putLog("Ready");
-        panelTop.setVisible(false);
         panelBottom.setVisible(true);
+        panelTop.setVisible(false);
         String login = tfLogin.getText();
         String password = new String(tfPassword.getPassword());
-        thread.sendMessage(Library.getAuthRequest(login, password));
+        if (boolRegistration) {
+            String nickName = tfNickName.getText();
+            thread.sendMessage(Library.getAuthNewClientRequest(login, password, nickName));
+            tfNickName.setVisible(false);
+            btnRegistration.setVisible(true);
+            btnLogin.setText("Login");
+            boolRegistration = false;
+        } else {
+            thread.sendMessage(Library.getAuthRequest(login, password));
+        }
     }
 
     /**
@@ -280,7 +303,7 @@ public class ClientGUI extends JFrame implements ActionListener, Thread.Uncaught
 
     @Override
     public void onSocketException(SocketThread thread, Exception exception) {
-        //  showException(thread, exception);
+        // showException(thread, exception);
     }
 
     private void handleMessage(String msg) {
@@ -288,7 +311,7 @@ public class ClientGUI extends JFrame implements ActionListener, Thread.Uncaught
         String msgType = arr[0];
         switch (msgType) {
             case Library.AUTH_ACCEPT:
-                setTitle(WINDOW_TITLE + " entered with nickname" + arr[1]);
+                setTitle(WINDOW_TITLE + " entered with nickname: " + arr[1]);
                 break;
             case Library.AUTH_DENIED:
                 putLog(msg);
@@ -302,17 +325,17 @@ public class ClientGUI extends JFrame implements ActionListener, Thread.Uncaught
                         arr[2] + ": " + arr[3]);
                 break;
             case Library.USER_LIST:
-                //создаем строку без префикса
                 String users = msg.substring(Library.USER_LIST.length() +
                         Library.DELIMITER.length());
                 String[] usersArr = users.split(Library.DELIMITER);
-                Arrays.sort(usersArr);//сортируем
-                userList.setListData(usersArr); // добавляем клиентов в Jlist
+                Arrays.sort(usersArr);
+                userList.setListData(usersArr);
                 break;
-            case Library.TYPE_BCAST_CLIENT:
+            case Library.REGISTRATION_DENIED:
+                putLog(" Nickname: " + arr[1] + " or login: " + arr[2] + " if exists.");
                 break;
             default:
-                throw new RuntimeException("Unknown message format: " + msg);
+                throw new RuntimeException("Unknown message type: " + msg);
         }
     }
 }

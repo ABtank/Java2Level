@@ -20,7 +20,7 @@ public class ChatServer implements ServerSockedThreadListener, SocketThreadListe
 
 
     private final ChatServerListener listener;
-    ServerSocketThread server;
+    private ServerSocketThread server;
     private final DateFormat DATE_FORMAT = new SimpleDateFormat("HH:mm:ss: ");
     private Vector<SocketThread> clients = new Vector<>(); // список сокет потоков сервера, не клиентов
 
@@ -40,7 +40,7 @@ public class ChatServer implements ServerSockedThreadListener, SocketThreadListe
     }
 
     public void stop() {
-        if (server != null || server.isAlive()) {
+        if (server == null || !server.isAlive()) {
             putLog("Server is not running");
         } else {
             server.interrupt();
@@ -48,7 +48,8 @@ public class ChatServer implements ServerSockedThreadListener, SocketThreadListe
     }
 
     private void putLog(String msg) {
-        msg = DATE_FORMAT.format(System.currentTimeMillis()) + Thread.currentThread().getName() + ": " + msg;
+        msg = DATE_FORMAT.format(System.currentTimeMillis()) +
+                Thread.currentThread().getName() + ": " + msg;
         listener.onChatServerMessage(msg);
     }
 
@@ -68,7 +69,7 @@ public class ChatServer implements ServerSockedThreadListener, SocketThreadListe
     public void onServerStop(ServerSocketThread thread) {
         putLog("Server thread stopped");
         SqlClient.disConnect();
-        for (int i = 0; i <clients.size() ; i++) {
+        for (int i = 0; i < clients.size(); i++) {
             clients.get(i).close();
         }
     }
@@ -129,8 +130,6 @@ public class ChatServer implements ServerSockedThreadListener, SocketThreadListe
     public synchronized void onSocketReady(SocketThread thread, Socket socked) {
         //добавляем клиентов когда уже потоки ввода вывода готовы
         clients.add(thread);
-
-
     }
 
     /**
@@ -154,7 +153,21 @@ public class ChatServer implements ServerSockedThreadListener, SocketThreadListe
      */
     private void handleNonAuthMessage(ClientThread client, String msg) {
         String[] arr = msg.split(Library.DELIMITER);
-        if (arr.length != 3 || !arr[0].equals(Library.AUTH_REQUEST)) {
+        if (arr[0].equals((Library.AUTH_NEW_CLIENT_REQUEST)) && arr.length == 4) {
+            String nickname = arr[3];
+            String login = arr[1];
+            String password = arr[2];
+            if (null!=SqlClient.getNickname(login, password)) {
+                SqlClient.setReNickname(nickname,login,password);
+            } else if (SqlClient.getNotExistsClient(nickname, login)) {
+                SqlClient.setNewClient(nickname, login, password);
+                sendToAuthClients(Library.getTypeBroadcast("Server", nickname + "connected"));
+            } else {
+                putLog("REGISTRATION FAIL. Nickname: " + nickname + " or login: " + login + " if exists.");
+                client.msgRegistrationDenied(nickname, login);
+                return;
+            }
+        } else if (arr.length != 3 || !arr[0].equals(Library.AUTH_REQUEST)) {
             client.msgFormatError(msg);
             return;
         }
@@ -165,12 +178,12 @@ public class ChatServer implements ServerSockedThreadListener, SocketThreadListe
             putLog("Invalid login attempt" + login);
             client.authFail();
             return;
-        }else {
+        } else {
             ClientThread oldClient = findClientByNickname(nickname);
             client.authAccept(nickname);
-            if(oldClient==null){
+            if (oldClient == null) {
                 sendToAuthClients(Library.getTypeBroadcast("Server", nickname + "connected"));
-            }else{
+            } else {
                 oldClient.reconnect();
                 clients.remove(oldClient);
             }
@@ -185,16 +198,15 @@ public class ChatServer implements ServerSockedThreadListener, SocketThreadListe
      * @param msg
      */
     private void handleAuthMessage(ClientThread client, String msg) {
-        String[] arr =msg.split(Library.DELIMITER);
-        String msgType= arr[0];
-        switch (msgType){
+        String[] arr = msg.split(Library.DELIMITER);
+        String msgType = arr[0];
+        switch (msgType) {
             case Library.TYPE_BCAST_CLIENT:
                 sendToAuthClients(Library.getTypeBroadcast(client.getNickname(), arr[1]));
                 break;
             default:
                 client.sendMessage(Library.getMsgFormatError(msg));
         }
-        sendToAuthClients(msg);
     }
 
     /**

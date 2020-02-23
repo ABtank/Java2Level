@@ -107,12 +107,9 @@ public class ServerGUI extends JFrame implements ActionListener, Thread.Uncaught
 
     @Override
     public void onChatServerMessage(String msg) {
-        SwingUtilities.invokeLater(new Runnable() {
-            @Override
-            public void run() { //Event Dispatching Thread
-                log.append(msg + "\n");
-                log.setCaretPosition(log.getDocument().getLength());
-            }
+        SwingUtilities.invokeLater(() -> {
+            log.append(msg + "\n");
+            log.setCaretPosition(log.getDocument().getLength());
         });
     }
 }
