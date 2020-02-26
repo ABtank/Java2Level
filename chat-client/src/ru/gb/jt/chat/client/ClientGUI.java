@@ -191,14 +191,15 @@ public class ClientGUI extends JFrame implements ActionListener, Thread.Uncaught
         tfMessage.requestFocusInWindow();
         socketThread.sendMessage(Library.getTypeBcastClient(msg));
         // putLog(String.format("%s: %s", username, msg));
-//        wrtMsgToLogFile(msg, username);
+        wrtMsgToLogFile(msg, username);
     }
 
     /**
      * Запись лога в файл
      */
     private void wrtMsgToLogFile(String msg, String username) {
-        try (FileWriter out = new FileWriter("log.txt", true)) {
+        String nameFile = String.format("%s_log.txt", username);
+        try (FileWriter out = new FileWriter(nameFile, true)) {
             out.write(username + ": " + msg + "\n");
             out.flush();
         } catch (IOException e) {
@@ -210,6 +211,51 @@ public class ClientGUI extends JFrame implements ActionListener, Thread.Uncaught
     }
 
     /**
+     * Определяем количество строк в истории лога
+     *
+     * @param input название файла для лога
+     */
+    private int countLinesHistoryMessage(String input) {
+        int count = 1;
+        try (InputStream is = new FileInputStream(input)) {
+            for (int aChar = 0; aChar != -1; aChar = is.read()) {
+                if (aChar == '\n') count++;
+            }
+        } catch (IOException e) {
+            if (!shownIoErrors) {
+                shownIoErrors = true;
+                showException(Thread.currentThread(), e);
+            }
+        }
+        return count;
+    }
+
+    /**
+     * вывод истории сообщений в лог
+     * Последних 100 строк
+     */
+    private void historyMessages() {
+        int numberLineInput = 100;
+        String username = tfLogin.getText();
+        String nameFile = String.format("%s_log.txt", username);
+        try (FileReader in = new FileReader(nameFile);
+             BufferedReader br = new BufferedReader((in))) {
+            String line;
+            int count = countLinesHistoryMessage(nameFile);
+            int b = 0;
+            while ((line = br.readLine()) != null) {
+                b++;
+                if (b >= count - numberLineInput) putLog(line);
+            }
+        } catch (IOException e) {
+            if (!shownIoErrors) {
+                shownIoErrors = true;
+                showException(Thread.currentThread(), e);
+            }
+        }
+    }
+
+     /**
      * Добавление строки в гол в отдельном потоке
      * Все что происходит в графическом интерфейсе происходит в спец потоке EventDespetcherThread
      * кторый мы запускаем методом SwingUtilities.invokeLater(new Runnable()
@@ -312,6 +358,11 @@ public class ClientGUI extends JFrame implements ActionListener, Thread.Uncaught
         switch (msgType) {
             case Library.AUTH_ACCEPT:
                 setTitle(WINDOW_TITLE + " entered with nickname: " + arr[1]);
+                log.setText(null);
+                File nameFile = new File(String.format("%s_log.txt", tfLogin.getText()));
+                if (nameFile.exists()) {
+                    historyMessages();
+                }
                 break;
             case Library.AUTH_DENIED:
                 putLog(msg);
